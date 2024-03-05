@@ -57,10 +57,10 @@ public class Transaction {
 
 
 
-    public Transaction(int customerAccountNumber, int destinationAccountNumber){
+    public Transaction(int customerAccountNumber, int destinationAccountNumber, double transactionAmount){
         this.customerAccountNumber = customerAccountNumber;
         this.destinationAccountNumber = destinationAccountNumber;
-        this.transactionAmount = 0;
+        this.transactionAmount = transactionAmount;
     }
 
 

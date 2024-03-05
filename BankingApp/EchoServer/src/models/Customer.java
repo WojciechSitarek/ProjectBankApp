@@ -20,6 +20,7 @@ public class Customer {
     private String address;
     private int customerId;
     private int phoneNumber;
+    private static int nextId;
 
 
 
@@ -65,7 +66,6 @@ public class Customer {
         return phoneNumber;
     }
 
-
-
+    public static int getNextId() { return nextId; }
 }
 
