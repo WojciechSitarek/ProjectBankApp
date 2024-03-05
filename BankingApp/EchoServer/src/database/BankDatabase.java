@@ -1,5 +1,7 @@
 package database;
 
+import models.Account;
+
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -22,7 +24,7 @@ public class BankDatabase {
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return -1; // zwróć -1, jeśli konto nie istnieje lub wystąpił błąd
+        return -1;
     }
 
     public static boolean deposit(String accountNumber, double amount) {
@@ -100,5 +102,18 @@ public class BankDatabase {
             e.printStackTrace();
         }
         return false;
+    }
+
+    public static void saveAccountToDatabase(Account account, double initialBalance) {
+        String INSERT_ACCOUNT_QUERY = "INSERT INTO accounts (account_number, balance, customer_id) VALUES (?, ?, ?)";
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(INSERT_ACCOUNT_QUERY)) {
+            statement.setString(1, account.getAccountNumber());
+            statement.setDouble(2, initialBalance);
+            statement.setInt(3, account.getAccountOwner().getCustomerId());
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
