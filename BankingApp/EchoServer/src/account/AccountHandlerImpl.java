@@ -7,7 +7,7 @@ import java.util.Random;
 
 import static database.BankDatabase.saveAccountToDatabase;
 
-public class AccountHandlerImpl implements AccountHandler{
+public class AccountHandlerImpl implements AccountHandler {
 
     @Override
     public Account createAccount(Customer accountOwner, double balance) {
