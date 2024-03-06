@@ -1,92 +1,16 @@
 package database;
 
 import models.Account;
+import models.Customer;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Scanner;
 
 public class BankDatabase {
-    private static final String GET_BALANCE_QUERY = "SELECT balance FROM accounts WHERE account_number = ?";
-    private static final String UPDATE_BALANCE_QUERY = "UPDATE accounts SET balance = ? WHERE account_number = ?";
     private static final String CHECK_ACCOUNT_EXISTS_QUERY = "SELECT COUNT(*) FROM accounts WHERE account_number = ?";
-
-    public static double getBalance(String accountNumber) {
-        try (Connection connection = DatabaseConnection.getConnection();
-             PreparedStatement statement = connection.prepareStatement(GET_BALANCE_QUERY)) {
-            statement.setString(1, accountNumber);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    return resultSet.getDouble("balance");
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return -1;
-    }
-
-    public static boolean deposit(String accountNumber, double amount) {
-        try (Connection connection = DatabaseConnection.getConnection()) {
-            double currentBalance = getBalance(accountNumber);
-            if (currentBalance >= 0) {
-                double newBalance = currentBalance + amount;
-                try (PreparedStatement statement = connection.prepareStatement(UPDATE_BALANCE_QUERY)) {
-                    statement.setDouble(1, newBalance);
-                    statement.setString(2, accountNumber);
-                    return statement.executeUpdate() > 0;
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    public static boolean withdraw(String accountNumber, double amount) {
-        try (Connection connection = DatabaseConnection.getConnection()) {
-            double currentBalance = getBalance(accountNumber);
-            if (currentBalance >= 0 && currentBalance >= amount) {
-                double newBalance = currentBalance - amount;
-                try (PreparedStatement statement = connection.prepareStatement(UPDATE_BALANCE_QUERY)) {
-                    statement.setDouble(1, newBalance);
-                    statement.setString(2, accountNumber);
-                    return statement.executeUpdate() > 0;
-                }
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
-
-    public static boolean transfer(String sourceAccountNumber, String destinationAccountNumber, double amount) {
-        try (Connection connection = DatabaseConnection.getConnection()) {
-            double sourceBalance = getBalance(sourceAccountNumber);
-            double destinationBalance = getBalance(destinationAccountNumber);
-            if (sourceBalance >= 0 && sourceBalance >= amount) {
-                double newSourceBalance = sourceBalance - amount;
-                double newDestinationBalance = destinationBalance + amount;
-                try (PreparedStatement statement = connection.prepareStatement(UPDATE_BALANCE_QUERY)) {
-                    // Aktualizacja stanu konta źródłowego
-                    statement.setDouble(1, newSourceBalance);
-                    statement.setString(2, sourceAccountNumber);
-                    statement.executeUpdate();
-                }
-                try (PreparedStatement statement = connection.prepareStatement(UPDATE_BALANCE_QUERY)) {
-                    // Aktualizacja stanu konta docelowego
-                    statement.setDouble(1, newDestinationBalance);
-                    statement.setString(2, destinationAccountNumber);
-                    statement.executeUpdate();
-                }
-                return true;
-            }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
-    }
 
     public static boolean accountExists(String accountNumber) {
         try (Connection connection = DatabaseConnection.getConnection();
@@ -115,5 +39,91 @@ public class BankDatabase {
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    public static void registerCustomer() {
+        try (Scanner scanner = new Scanner(System.in);
+             Connection connection = DatabaseConnection.getConnection()) {
+            System.out.println("===== Rejestracja klienta =====");
+            System.out.print("Imię: ");
+            String name = scanner.nextLine();
+
+            System.out.print("Nazwisko: ");
+            String lastname = scanner.nextLine();
+
+            System.out.print("Login: ");
+            String login = scanner.nextLine();
+
+            System.out.print("Hasło: ");
+            String password = scanner.nextLine();
+
+            System.out.print("Adres: ");
+            String address = scanner.nextLine();
+
+            System.out.print("Numer telefonu: ");
+            int phoneNumber = Integer.parseInt(scanner.nextLine());
+
+            String query = "INSERT INTO customer (name, lastname, login, password, address, phoneNumber) VALUES (?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, name);
+                statement.setString(2, lastname);
+                statement.setString(3, login);
+                statement.setString(4, password);
+                statement.setString(5, address);
+                statement.setInt(6, phoneNumber);
+                int rowsInserted = statement.executeUpdate();
+                if (rowsInserted > 0) {
+                    System.out.println("Klient został zarejestrowany pomyślnie!");
+                } else {
+                    System.out.println("Błąd podczas rejestracji klienta.");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static Customer loginUser() throws SQLException {
+        Scanner scanner = new Scanner(System.in);
+
+        System.out.println("Podaj login:");
+        String login = scanner.nextLine();
+
+        System.out.println("Podaj hasło:");
+        String password = scanner.nextLine();
+
+        Customer user = getUserFromDatabase(login, password);
+
+        // Sprawdź, czy użytkownik istnieje i czy podane hasło jest poprawne
+        if (user != null && user.getPassword().equals(password)) {
+            System.out.println("Zalogowano pomyślnie!");
+            return user;
+        } else {
+            System.out.println("Nieudane logowanie. Spróbuj ponownie.");
+            return loginUser(); // Rekurencyjne wywołanie metody w przypadku nieudanego logowania
+        }
+    }
+
+    public static Customer getUserFromDatabase(String login, String password) throws SQLException {
+        String query = "SELECT * FROM Customer WHERE login = ? AND password = ?";
+        try (Connection connection = DatabaseConnection.getConnection();
+             PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, login);
+            statement.setString(2, password);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                // Utwórz obiekt Customer na podstawie wyników zapytania
+                Customer user = new Customer();
+                user.setLogin(resultSet.getString("login"));
+                user.setPassword(resultSet.getString("password"));
+                return user;
+            } else {
+                return null; // Zwróć null, jeśli użytkownik o podanym loginie i haśle nie został znaleziony
+            }
+        }
+    }
+
+    public static void main(String[] args) {
+        registerCustomer();
     }
 }

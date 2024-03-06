@@ -55,6 +55,7 @@ public class Client {
         //Pętla główna klienta
         while (true) {
             try {
+                System.out.println("Lista możliwych operacji.... (Register, login, quit)");
                 line = brLocalInp.readLine();
                 if (line != null) {
                     System.out.println("Wysyłam: " + line);
