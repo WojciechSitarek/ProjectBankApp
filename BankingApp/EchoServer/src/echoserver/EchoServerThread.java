@@ -8,6 +8,7 @@ import java.io.*;
 public class EchoServerThread implements Runnable {
     protected Socket socket;
     private String loggedInUser;
+    private String loggedInAccountNumber;
 
     public EchoServerThread(Socket clientSocket) {
         this.socket = clientSocket;
@@ -60,6 +61,7 @@ public class EchoServerThread implements Runnable {
                             boolean loginSuccessful = handleUserLogin(brinp, out);
                             if (loginSuccessful) {
                                 loggedIn = true;
+                                loggedInAccountNumber = BankDatabase.getAccountNumberByLogin(loggedInUser);
                                 out.writeBytes("Logowanie powiodlo sie\n");
                                 out.writeBytes("""
                                         === Lista Operacji ===
@@ -81,6 +83,7 @@ public class EchoServerThread implements Runnable {
                     case "wyloguj":
                         loggedIn = false;
                         loggedInUser = null;
+                        loggedInAccountNumber = null;
                         out.writeBytes("Wylogowano pomyślnie\n");
                         out.flush();
                         break;
@@ -93,10 +96,10 @@ public class EchoServerThread implements Runnable {
                         } else {
                             switch (line) {
                                 case "deposit":
-                                    // implementacja wpłaty
+                                    handleDeposit(brinp,out);
                                     break;
                                 case "withdraw":
-                                    // implementacja wypłaty
+                                    handleWithdrawal(out,brinp);
                                     break;
                                 case "balance":
                                     handleCheckBalance(out);
@@ -105,7 +108,7 @@ public class EchoServerThread implements Runnable {
                                     // implementacja info
                                     break;
                                 case "transfer":
-                                    // implementacja przelewu
+                                    handleTransfer(out,brinp);
                                     break;
                                 default:
                                     out.writeBytes("Nieprawidlowe polecenie\n");
@@ -140,6 +143,8 @@ public class EchoServerThread implements Runnable {
         out.flush();
         int phoneNumber = Integer.parseInt(brinp.readLine());
         BankDatabase.registerCustomer(name, lastName, login, password, address, phoneNumber);
+        String ownerId = String.valueOf(BankDatabase.getCustomerIdByLogin(loggedInUser));
+        BankDatabase.createCustomerAccount(ownerId,BankDatabase.getCustomerIdByLogin(login));
         out.writeBytes("Utworzono uzytkownika!\n\r");
         out.flush();
     }
@@ -156,18 +161,61 @@ public class EchoServerThread implements Runnable {
         out.flush();
         if (loginSuccess) {
             loggedInUser = login;
+            loggedInAccountNumber = BankDatabase.getAccountNumberByLogin(loggedInUser);
         }
         return loginSuccess;
     }
 
     private void handleCheckBalance(DataOutputStream out) throws IOException {
         if (loggedInUser != null) {
-            double balance = BankDatabase.getBalanceByLogin(loggedInUser); // Użyj zalogowanego użytkownika do pobrania salda
+            double balance = BankDatabase.getBalanceByLogin(loggedInUser);
             out.writeBytes("Aktualny stan konta: " + balance + "\n");
             out.flush();
         } else {
-            out.writeBytes("Nie jesteś zalogowany!\n");
+            out.writeBytes("Nie jestes zalogowany!\n");
             out.flush();
         }
+    }
+
+    private void handleDeposit(BufferedReader brinp, DataOutputStream out) throws IOException {
+        if (loggedInAccountNumber != null) {
+            out.writeBytes("Podaj kwote: \n");
+            out.flush();
+            String depositAmountString = brinp.readLine();
+            BankDatabase.makePayment(loggedInAccountNumber, Integer.parseInt(depositAmountString));
+
+            out.writeBytes("Wplata pomyslnie zrealizowana.\n");
+        } else {
+            out.writeBytes("Nie jestes zalogowany lub numer konta jest nieprawidlowy!\n");
+        }
+        out.flush();
+    }
+    private void handleWithdrawal(DataOutputStream out,BufferedReader brinp ) throws IOException {
+        if (loggedInAccountNumber != null) {
+            out.writeBytes("Podaj kwote");
+            out.flush();
+            String withdrawalAmount = brinp.readLine();
+            BankDatabase.PaymentProcessor.makePaycheck((loggedInAccountNumber), Double.parseDouble(withdrawalAmount));
+            out.writeBytes("Wypłata pomyślnie zrealizowana.\n");
+        } else {
+            out.writeBytes("Nie jesteś zalogowany lub numer konta jest nieprawidłowy!\n");
+        }
+        out.flush();
+    }
+
+    private void handleTransfer(DataOutputStream out,BufferedReader brinp ) throws IOException {
+        if (loggedInAccountNumber != null) {
+            out.writeBytes("Podaj kwote: \n");
+            out.flush();
+            String transferAmount = brinp.readLine();
+            out.writeBytes("Podaj docelowy numer konta: \n");
+            out.flush();
+            String destinationAccountNumber = brinp.readLine();
+            BankDatabase.makeTransfer((loggedInAccountNumber), destinationAccountNumber, Double.parseDouble(transferAmount));
+            out.writeBytes("Przelew pomyślnie zrealizowany.\n");
+        } else {
+            out.writeBytes("Nie jesteś zalogowany lub numer konta jest nieprawidłowy!\n");
+        }
+        out.flush();
     }
 }

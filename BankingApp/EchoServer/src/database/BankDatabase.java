@@ -12,18 +12,17 @@ import static models.Account.generateAccountNumber;
 
 public class BankDatabase {
 
-    public static void createCustomerAccount(String ownerID) {
-
+    public static void createCustomerAccount(String ownerID, int customerId) {
         String accountNumber = generateAccountNumber();
         double balance = 0.0;
 
         try (Connection connection = DatabaseConnection.getConnection()) {
-            String query = "INSERT INTO account (accountNumber, balance, ownerID) VALUES (?, ?, ?)";
+            String query = "INSERT INTO account (accountNumber, balance, ownerId) VALUES (?, ?, ?)";
 
             try (PreparedStatement statement = connection.prepareStatement(query)) {
                 statement.setString(1, accountNumber);
                 statement.setDouble(2, balance);
-                statement.setString(3, ownerID);
+                statement.setInt(3, customerId); // Przypisanie customerId do ownerId
 
                 int rowsInserted = statement.executeUpdate();
                 if (rowsInserted > 0) {
@@ -36,6 +35,7 @@ public class BankDatabase {
             e.printStackTrace();
         }
     }
+
 
     public static void registerCustomer(String name, String lastname, String login, String password, String address, int phoneNumber) {
         try (Connection connection = DatabaseConnection.getConnection()) {
@@ -113,6 +113,24 @@ public class BankDatabase {
         return balance;
     }
 
+    public static String getAccountNumberByLogin(String login) {
+        String accountNumber = null;
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            String query = "SELECT accountNumber FROM Account WHERE ownerId = (SELECT customerId FROM Customer WHERE login = ?)";
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, login);
+                ResultSet resultSet = statement.executeQuery();
+                if (resultSet.next()) {
+                    accountNumber = resultSet.getString("accountNumber");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return accountNumber;
+    }
+
+
     public static String getAccountInfo(int ownerId) throws SQLException {
         StringBuilder accountInfo = new StringBuilder();
         String query = "SELECT * FROM Account WHERE ownerId = ?";
@@ -132,15 +150,16 @@ public class BankDatabase {
     }
 
 
-    public static void payment(int customerAccountNumber, double depositAmount) {
+    // tutaj
+    public static void makePayment(String customerAccountNumber, double depositAmount) {
         try (Connection connection = DatabaseConnection.getConnection()) {
             // Utwórz zapytanie SQL do aktualizacji salda na koncie
-            String depositQuery = "UPDATE Account SET balance = balance + ? WHERE ownerId = ?";
+            String depositQuery = "UPDATE Account SET balance = balance + ? WHERE accountNumber = ?";
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(depositQuery)) {
                 // Ustaw parametry zapytania
                 preparedStatement.setDouble(1, depositAmount);
-                preparedStatement.setInt(2, customerAccountNumber);
+                preparedStatement.setString(2, customerAccountNumber);
 
                 // Wykonaj zapytanie
                 int rowsAffected = preparedStatement.executeUpdate();
@@ -160,14 +179,15 @@ public class BankDatabase {
 
     public class PaymentProcessor {
 
-        public static void makePayment(int customerAccountNumber, double transactionAmount) {
+        // tutuaj - wypłata
+        public static void makePaycheck(String accountNumber, double transactionAmount) {
             try (Connection connection = DatabaseConnection.getConnection()) {
                 // Sprawdzamy, czy istnieje odpowiedni rekord w tabeli Account
-                if (isValidAccount(connection, customerAccountNumber)) {
+                if (isValidAccount(connection, accountNumber)) {
                     // Sprawdzamy, czy na koncie jest wystarczająca ilość środków
-                    if (hasSufficientBalance(connection, customerAccountNumber, transactionAmount)) {
+                    if (hasSufficientBalance(connection, accountNumber, transactionAmount)) {
                         // Dokonujemy wypłaty
-                        performPayment(connection, customerAccountNumber, transactionAmount);
+                        performPayment(connection, accountNumber, transactionAmount);
                         System.out.println("Wypłata zakończona pomyślnie.");
                     } else {
                         System.out.println("Brak wystarczających środków na koncie.");
@@ -180,18 +200,18 @@ public class BankDatabase {
             }
         }
 
-        private static boolean isValidAccount(Connection connection, int customerAccountNumber) throws SQLException {
-            String query = "SELECT * FROM Account WHERE ownerId = ?";
+        private static boolean isValidAccount(Connection connection, String accountNumber) throws SQLException {
+            String query = "SELECT * FROM Account WHERE accountNumber = ?";
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-                preparedStatement.setInt(1, customerAccountNumber);
+                preparedStatement.setString(1, accountNumber);
                 return preparedStatement.executeQuery().next();
             }
         }
 
-        private static boolean hasSufficientBalance(Connection connection, int customerAccountNumber, double transactionAmount) throws SQLException {
-            String query = "SELECT balance FROM Account WHERE ownerId = ?";
+        private static boolean hasSufficientBalance(Connection connection, String accountNumber, double transactionAmount) throws SQLException {
+            String query = "SELECT balance FROM Account WHERE accountNumber = ?";
             try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-                preparedStatement.setInt(1, customerAccountNumber);
+                preparedStatement.setString(1, accountNumber);
                 double currentBalance = 0;
                 var resultSet = preparedStatement.executeQuery();
                 if (resultSet.next()) {
@@ -201,34 +221,34 @@ public class BankDatabase {
             }
         }
 
-        private static void performPayment(Connection connection, int customerAccountNumber, double transactionAmount) throws SQLException {
-            String updateQuery = "UPDATE Account SET balance = balance - ? WHERE ownerId = ?";
+        private static void performPayment(Connection connection, String accountNumber, double transactionAmount) throws SQLException {
+            String updateQuery = "UPDATE Account SET balance = balance - ? WHERE accountNumber = ?";
             try (PreparedStatement updateStatement = connection.prepareStatement(updateQuery)) {
                 updateStatement.setDouble(1, transactionAmount);
-                updateStatement.setInt(2, customerAccountNumber);
+                updateStatement.setString(2, accountNumber);
                 updateStatement.executeUpdate();
             }
 
-            String insertQuery = "INSERT INTO Pay (transactionAmount, customerAccountNumber) VALUES (?, ?)";
+            String insertQuery = "INSERT INTO Pay (transactionAmount, accountNumber) VALUES (?, ?)";
             try (PreparedStatement insertStatement = connection.prepareStatement(insertQuery)) {
                 insertStatement.setDouble(1, transactionAmount);
-                insertStatement.setInt(2, customerAccountNumber);
+                insertStatement.setString(2, accountNumber);
                 insertStatement.executeUpdate();
             }
         }
     }
 
-
-    public static void makeTransfer(int customerAccountNumber, int destinationAccountNumber, double transferAmount) {
+// tutaj - przelew
+    public static void makeTransfer(String accountNumber, String destinationAccountNumber, double transferAmount) {
         try (Connection connection = DatabaseConnection.getConnection()) {
             // Sprawdź, czy środki na koncie źródłowym są wystarczające
-            if (checkSufficientFunds(connection, customerAccountNumber, transferAmount)) {
+            if (checkSufficientFunds(connection, accountNumber, transferAmount)) {
                 // Rozpocznij transakcję
                 connection.setAutoCommit(false);
 
                 try {
                     // Zmniejsz saldo na koncie źródłowym
-                    updateBalance(connection, customerAccountNumber, -transferAmount);
+                    updateBalance(connection, accountNumber, -transferAmount);
 
                     // Zwiększ saldo na koncie docelowym
                     updateBalance(connection, destinationAccountNumber, transferAmount);
@@ -253,10 +273,10 @@ public class BankDatabase {
         }
     }
 
-    private static boolean checkSufficientFunds(Connection connection, int accountNumber, double amount) throws SQLException {
-        String query = "SELECT balance FROM Account WHERE ownerId = ?";
+    private static boolean checkSufficientFunds(Connection connection, String accountNumber, double amount) throws SQLException {
+        String query = "SELECT balance FROM Account WHERE accountNumber = ?";
         try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
-            preparedStatement.setInt(1, accountNumber);
+            preparedStatement.setString(1, accountNumber);
             try (var resultSet = preparedStatement.executeQuery()) {
                 if (resultSet.next()) {
                     double balance = resultSet.getDouble("balance");
@@ -267,11 +287,11 @@ public class BankDatabase {
         return false;
     }
 
-    private static void updateBalance(Connection connection, int accountNumber, double amount) throws SQLException {
-        String query = "UPDATE Account SET balance = balance + ? WHERE ownerId = ?";
+    private static void updateBalance(Connection connection, String accountNumber, double amount) throws SQLException {
+        String query = "UPDATE Account SET balance = balance + ? WHERE accountNumber = ?";
         try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
             preparedStatement.setDouble(1, amount);
-            preparedStatement.setInt(2, accountNumber);
+            preparedStatement.setString(2, accountNumber);
             preparedStatement.executeUpdate();
         }
     }
