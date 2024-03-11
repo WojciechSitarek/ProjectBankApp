@@ -1,9 +1,5 @@
 package echoserver;
 
-/**
- *
- * @author dzelazny
- */
 import java.net.*;
 import java.io.*;
 
@@ -18,57 +14,75 @@ public class Client {
             System.out.println("Nieprawidłowy argument: port");
             System.exit(-1);
         }
-        //Inicjalizacja gniazda klienckiego
-        Socket clientSocket = null;
+
         try {
-            clientSocket = new Socket(host, port);
-        } catch (UnknownHostException e) {
-            System.out.println("Nieznany host.");
-            System.exit(-1);
-        } catch (ConnectException e) {
-            System.out.println("Połączenie odrzucone.");
-            System.exit(-1);
+            // Inicjalizacja gniazda klienckiego
+            Socket clientSocket = new Socket(host, port);
+            System.out.println("Połączono z " + clientSocket);
+
+            // Wątek dla odczytu danych od serwera
+            Thread serverThread = new Thread(new ServerReader(clientSocket));
+            serverThread.start();
+
+            // Wątek dla wprowadzania danych przez użytkownika
+            Thread userInputThread = new Thread(new UserInputHandler(clientSocket));
+            userInputThread.start();
+
         } catch (IOException e) {
             System.out.println("Błąd wejścia-wyjścia: " + e);
             System.exit(-1);
         }
-        System.out.println("Połączono z " + clientSocket);
+    }
 
-        //Deklaracje zmiennych strumieniowych 
-        String line = null;
-        BufferedReader brSockInp = null;
-        BufferedReader brLocalInp = null;
-        DataOutputStream out = null;
+    // Klasa obsługująca odczyt danych od serwera
+    static class ServerReader implements Runnable {
+        private Socket socket;
 
-        //Utworzenie strumieni
-        try {
-            out = new DataOutputStream(clientSocket.getOutputStream());
-            brSockInp = new BufferedReader(
-                    new InputStreamReader(
-                            clientSocket.getInputStream()));
-            brLocalInp = new BufferedReader(
-                    new InputStreamReader(System.in));
-        } catch (IOException e) {
-            System.out.println("Błąd przy tworzeniu strumieni: " + e);
-            System.exit(-1);
+        public ServerReader(Socket socket) {
+            this.socket = socket;
         }
-        //Pętla główna klienta
-        while (true) {
+
+        @Override
+        public void run() {
             try {
-                System.out.println("Lista możliwych operacji.... (Register, login, quit)");
-                line = brLocalInp.readLine();
-                if (line != null) {
+                BufferedReader brSockInp = new BufferedReader(
+                        new InputStreamReader(socket.getInputStream()));
+                String line;
+                while ((line = brSockInp.readLine()) != null) {
+//                    System.out.println("Otrzymano: " + line);
+                    System.out.println(line);
+                }
+            } catch (IOException e) {
+                System.out.println("Błąd wejścia-wyjścia: " + e);
+                System.exit(-1);
+            }
+        }
+    }
+
+    // Klasa obsługująca wprowadzanie danych przez użytkownika
+    static class UserInputHandler implements Runnable {
+        private Socket socket;
+
+        public UserInputHandler(Socket socket) {
+            this.socket = socket;
+        }
+
+        @Override
+        public void run() {
+            try {
+                BufferedReader brLocalInp = new BufferedReader(
+                        new InputStreamReader(System.in));
+                DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+                String line;
+                while ((line = brLocalInp.readLine()) != null && !"quit".equals(line)) {
                     System.out.println("Wysyłam: " + line);
                     out.writeBytes(line + '\n');
                     out.flush();
                 }
-                if (line == null || "quit".equals(line)) {
-                    System.out.println("Kończenie pracy...");
-                    clientSocket.close();
-                    System.exit(0);
-                }
-                brSockInp.readLine();
-                System.out.println("Otrzymano: " + line);
+                // Zamykanie połączenia
+                System.out.println("Kończenie pracy...");
+                socket.close();
+                System.exit(0);
             } catch (IOException e) {
                 System.out.println("Błąd wejścia-wyjścia: " + e);
                 System.exit(-1);

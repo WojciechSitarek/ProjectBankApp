@@ -16,6 +16,11 @@ public class Transaction {
     private int destinationAccountNumber;
     private int transactionId;
 
+    public Transaction(int customerAccountNumber, int destinationAccountNumber, double transactionAmount) {
+        this.customerAccountNumber = customerAccountNumber;
+        this.destinationAccountNumber = destinationAccountNumber;
+        this.transactionAmount = transactionAmount;
+    }
 
     public double getTransactionAmount() {
         return transactionAmount;
@@ -25,8 +30,6 @@ public class Transaction {
         this.transactionAmount = transactionAmount;
     }
 
-
-
     public int getCustomerAccountNumber() {
         return customerAccountNumber;
     }
@@ -34,8 +37,6 @@ public class Transaction {
     public void setCustomerAccountNumber(int customerAccountNumber) {
         this.customerAccountNumber = customerAccountNumber;
     }
-
-
 
     public int getDestinationAccountNumber() {
         return destinationAccountNumber;
@@ -45,8 +46,6 @@ public class Transaction {
         this.destinationAccountNumber = destinationAccountNumber;
     }
 
-
-
     public int getTransactionId() {
         return transactionId;
     }
@@ -55,19 +54,9 @@ public class Transaction {
         this.transactionId = transactionId;
     }
 
-
-
-    public Transaction(int customerAccountNumber, int destinationAccountNumber, double transactionAmount){
-        this.customerAccountNumber = customerAccountNumber;
-        this.destinationAccountNumber = destinationAccountNumber;
-        this.transactionAmount = transactionAmount;
-    }
-
-
-
     public void getTransactionInfo() {
         String transInfo = String.format("Customer [Account number: %s, Amount: %s, Destination Account number: %s, TransactionId: %s]",
-                this.customerAccountNumber, this.transactionAmount,this.destinationAccountNumber, this.transactionId);
+                this.customerAccountNumber, this.transactionAmount, this.destinationAccountNumber, this.transactionId);
         System.out.println(transInfo);
     }
 

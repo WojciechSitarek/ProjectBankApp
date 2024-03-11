@@ -2,6 +2,7 @@ package models;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class Account {
 
@@ -15,21 +16,43 @@ public class Account {
 
     private String accountNumber;
     private double balance;
-    private Customer accountOwner;
+    private int customerId;
     private List<Transaction> transactionHistory = new ArrayList<>();
 
 
-    public Account(String accountNumber, Customer accountOwner) {
-        this.accountNumber = accountNumber;
-        this.accountOwner = accountOwner;
-        this.balance = 0;
+    public Account(String accountNumber, double balance, int customerId) {
+        this.accountNumber = generateAccountNumber();
+        this.balance = balance;
+        this.customerId = customerId;
+    }
+
+    public Account() {
+
+    }
+    public static String generateAccountNumber() {
+        try {
+            Random random = new Random();
+            StringBuilder accountNumber = new StringBuilder();
+            for (int i = 0; i < 26; i++) {
+                int digit = random.nextInt(10);
+                accountNumber.append(digit);
+            }
+            return accountNumber.toString();
+        } catch (IllegalArgumentException e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
+
+    public int getCustomerId() {
+        return customerId;
     }
 
     public String getAccountNumber() {
         return accountNumber;
     }
 
-    public double getBalance() {
+    public double getBalance(int cutomerId) {
         return balance;
     }
 
@@ -37,13 +60,6 @@ public class Account {
         this.balance = balance;
     }
 
-    public Customer getAccountOwner() {
-        return accountOwner;
-    }
-
-    public void setAccountOwner(Customer accountOwner) {
-        this.accountOwner = accountOwner;
-    }
 
     public List<Transaction> getTransactionHistory() {
         return transactionHistory;
@@ -54,8 +70,8 @@ public class Account {
     }
 
     public void getFullAccountInfo() {
-        String info = String.format("Customer [Account number: %s, Balance: %s, Account Owner: %s]",
-                this.accountNumber, this.balance, this.accountOwner);
+        String info = String.format("Customer [Account number: %s, Balance: %s, OwnerId: %s]",
+                this.accountNumber, this.balance, this.customerId);
         System.out.println(info);
     }
 }
