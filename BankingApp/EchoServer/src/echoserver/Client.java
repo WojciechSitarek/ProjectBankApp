@@ -16,15 +16,13 @@ public class Client {
         }
 
         try {
-            // Inicjalizacja gniazda klienckiego
+
             Socket clientSocket = new Socket(host, port);
             System.out.println("Połączono z " + clientSocket);
-
-            // Wątek dla odczytu danych od serwera
+            
             Thread serverThread = new Thread(new ServerReader(clientSocket));
             serverThread.start();
 
-            // Wątek dla wprowadzania danych przez użytkownika
             Thread userInputThread = new Thread(new UserInputHandler(clientSocket));
             userInputThread.start();
 

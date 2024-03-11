@@ -59,21 +59,21 @@ public class BankDatabase {
         }
     }
 
-    public static String getCustomerIdByLogin(String login) {
-        String accountId = null;
+    public static int getCustomerIdByLogin(String login) {
+        int customerId = 0;
         try (Connection connection = DatabaseConnection.getConnection()) {
             String query = "SELECT customerId FROM customer WHERE login = ?";
             try (PreparedStatement statement = connection.prepareStatement(query)) {
                 statement.setString(1, login);
                 ResultSet resultSet = statement.executeQuery();
                 if (resultSet.next()) {
-                    accountId = resultSet.getString("customerId");
+                    customerId = resultSet.getInt("customerId");
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
-        return accountId;
+        return customerId;
     }
 
     public static boolean checkCredentials(String login, String password) {
@@ -90,15 +90,19 @@ public class BankDatabase {
             return false;
         }
     }
-    public static double getBalance(int accountId) {
+    public static double getBalanceByLogin(String login) {
         double balance = 0.0;
-        String query = "SELECT balance FROM Account WHERE accountId = ?";
+        int customerId = getCustomerIdByLogin(login); // Pobranie identyfikatora klienta na podstawie loginu
+
+        // Zapytanie do bazy danych
+        String query = "SELECT balance FROM Account WHERE ownerId = ?";
 
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setInt(1, accountId);
+            statement.setInt(1, customerId);
             ResultSet resultSet = statement.executeQuery();
 
+            // Jeśli istnieją wyniki, pobierz stan konta
             if (resultSet.next()) {
                 balance = resultSet.getDouble("balance");
             }

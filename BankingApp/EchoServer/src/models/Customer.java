@@ -1,18 +1,6 @@
 package models;
 
 public class Customer {
-
-    // pola: name, lastName, login, password, address, customerId, phoneNumber;
-
-    // konstruktor1 - do logowania: login , hasło
-
-    // konstrukotr2 - tworzenie użytkownika: name, lastName,login, password, address, CustomerId, phoneNumber;
-
-    // gettery
-
-    // toString()
-
-
     private String name;
     private String lastname;
     private String login;
@@ -64,14 +52,6 @@ public class Customer {
 
     public int getPhoneNumber() {
         return phoneNumber;
-    }
-
-    public void setLogin(String login) {
-        this.login = login;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
     }
 
     public static int getNextId() { return nextId; }

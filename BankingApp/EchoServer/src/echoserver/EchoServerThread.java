@@ -1,6 +1,5 @@
 package echoserver;
 
-
 import database.BankDatabase;
 
 import java.net.*;
@@ -8,6 +7,7 @@ import java.io.*;
 
 public class EchoServerThread implements Runnable {
     protected Socket socket;
+    private String loggedInUser;
 
     public EchoServerThread(Socket clientSocket) {
         this.socket = clientSocket;
@@ -80,6 +80,7 @@ public class EchoServerThread implements Runnable {
                         break;
                     case "wyloguj":
                         loggedIn = false;
+                        loggedInUser = null;
                         out.writeBytes("Wylogowano pomyślnie\n");
                         out.flush();
                         break;
@@ -98,7 +99,7 @@ public class EchoServerThread implements Runnable {
                                     // implementacja wypłaty
                                     break;
                                 case "balance":
-                                        handleCheckBalance(out);
+                                    handleCheckBalance(out);
                                     break;
                                 case "info":
                                     // implementacja info
@@ -143,10 +144,6 @@ public class EchoServerThread implements Runnable {
         out.flush();
     }
 
-    private static void createAccount(String customerId) {
-        BankDatabase.createCustomerAccount(customerId);
-    }
-
     private boolean handleUserLogin(BufferedReader brinp, DataOutputStream out) throws IOException {
         out.writeBytes("Podaj login: \n");
         out.flush();
@@ -157,12 +154,20 @@ public class EchoServerThread implements Runnable {
         out.flush();
         boolean loginSuccess = BankDatabase.checkCredentials(login, password);
         out.flush();
-
+        if (loginSuccess) {
+            loggedInUser = login;
+        }
         return loginSuccess;
     }
 
     private void handleCheckBalance(DataOutputStream out) throws IOException {
-
-
+        if (loggedInUser != null) {
+            double balance = BankDatabase.getBalanceByLogin(loggedInUser); // Użyj zalogowanego użytkownika do pobrania salda
+            out.writeBytes("Aktualny stan konta: " + balance + "\n");
+            out.flush();
+        } else {
+            out.writeBytes("Nie jesteś zalogowany!\n");
+            out.flush();
+        }
     }
 }
