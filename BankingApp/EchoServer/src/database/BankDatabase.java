@@ -130,6 +130,152 @@ public class BankDatabase {
         }
         return accountInfo.toString();
     }
+
+
+    public static void payment(int customerAccountNumber, double depositAmount) {
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            // Utwórz zapytanie SQL do aktualizacji salda na koncie
+            String depositQuery = "UPDATE Account SET balance = balance + ? WHERE ownerId = ?";
+
+            try (PreparedStatement preparedStatement = connection.prepareStatement(depositQuery)) {
+                // Ustaw parametry zapytania
+                preparedStatement.setDouble(1, depositAmount);
+                preparedStatement.setInt(2, customerAccountNumber);
+
+                // Wykonaj zapytanie
+                int rowsAffected = preparedStatement.executeUpdate();
+
+                // Sprawdź, czy transakcja została pomyślnie zakończona
+                if (rowsAffected > 0) {
+                    System.out.println("Wpłata pomyślnie zrealizowana.");
+                } else {
+                    System.out.println("Wpłata nieudana. Sprawdź numer konta.");
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    public class PaymentProcessor {
+
+        public static void makePayment(int customerAccountNumber, double transactionAmount) {
+            try (Connection connection = DatabaseConnection.getConnection()) {
+                // Sprawdzamy, czy istnieje odpowiedni rekord w tabeli Account
+                if (isValidAccount(connection, customerAccountNumber)) {
+                    // Sprawdzamy, czy na koncie jest wystarczająca ilość środków
+                    if (hasSufficientBalance(connection, customerAccountNumber, transactionAmount)) {
+                        // Dokonujemy wypłaty
+                        performPayment(connection, customerAccountNumber, transactionAmount);
+                        System.out.println("Wypłata zakończona pomyślnie.");
+                    } else {
+                        System.out.println("Brak wystarczających środków na koncie.");
+                    }
+                } else {
+                    System.out.println("Nieprawidłowy numer konta.");
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private static boolean isValidAccount(Connection connection, int customerAccountNumber) throws SQLException {
+            String query = "SELECT * FROM Account WHERE ownerId = ?";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                preparedStatement.setInt(1, customerAccountNumber);
+                return preparedStatement.executeQuery().next();
+            }
+        }
+
+        private static boolean hasSufficientBalance(Connection connection, int customerAccountNumber, double transactionAmount) throws SQLException {
+            String query = "SELECT balance FROM Account WHERE ownerId = ?";
+            try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+                preparedStatement.setInt(1, customerAccountNumber);
+                double currentBalance = 0;
+                var resultSet = preparedStatement.executeQuery();
+                if (resultSet.next()) {
+                    currentBalance = resultSet.getDouble("balance");
+                }
+                return currentBalance >= transactionAmount;
+            }
+        }
+
+        private static void performPayment(Connection connection, int customerAccountNumber, double transactionAmount) throws SQLException {
+            String updateQuery = "UPDATE Account SET balance = balance - ? WHERE ownerId = ?";
+            try (PreparedStatement updateStatement = connection.prepareStatement(updateQuery)) {
+                updateStatement.setDouble(1, transactionAmount);
+                updateStatement.setInt(2, customerAccountNumber);
+                updateStatement.executeUpdate();
+            }
+
+            String insertQuery = "INSERT INTO Pay (transactionAmount, customerAccountNumber) VALUES (?, ?)";
+            try (PreparedStatement insertStatement = connection.prepareStatement(insertQuery)) {
+                insertStatement.setDouble(1, transactionAmount);
+                insertStatement.setInt(2, customerAccountNumber);
+                insertStatement.executeUpdate();
+            }
+        }
+    }
+
+
+    public static void makeTransfer(int customerAccountNumber, int destinationAccountNumber, double transferAmount) {
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            // Sprawdź, czy środki na koncie źródłowym są wystarczające
+            if (checkSufficientFunds(connection, customerAccountNumber, transferAmount)) {
+                // Rozpocznij transakcję
+                connection.setAutoCommit(false);
+
+                try {
+                    // Zmniejsz saldo na koncie źródłowym
+                    updateBalance(connection, customerAccountNumber, -transferAmount);
+
+                    // Zwiększ saldo na koncie docelowym
+                    updateBalance(connection, destinationAccountNumber, transferAmount);
+
+                    // Zatwierdź transakcję
+                    connection.commit();
+
+                    System.out.println("Przelew pomyślnie zrealizowany.");
+                } catch (SQLException e) {
+                    // W razie błędu anuluj transakcję
+                    connection.rollback();
+                    System.out.println("Błąd podczas przetwarzania przelewu. Transakcja anulowana.");
+                } finally {
+                    // Przywróć domyślną funkcję automatycznego zatwierdzania
+                    connection.setAutoCommit(true);
+                }
+            } else {
+                System.out.println("Niewystarczające środki na koncie źródłowym.");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static boolean checkSufficientFunds(Connection connection, int accountNumber, double amount) throws SQLException {
+        String query = "SELECT balance FROM Account WHERE ownerId = ?";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setInt(1, accountNumber);
+            try (var resultSet = preparedStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    double balance = resultSet.getDouble("balance");
+                    return balance >= amount;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static void updateBalance(Connection connection, int accountNumber, double amount) throws SQLException {
+        String query = "UPDATE Account SET balance = balance + ? WHERE ownerId = ?";
+        try (PreparedStatement preparedStatement = connection.prepareStatement(query)) {
+            preparedStatement.setDouble(1, amount);
+            preparedStatement.setInt(2, accountNumber);
+            preparedStatement.executeUpdate();
+        }
+    }
+
 }
 
 
