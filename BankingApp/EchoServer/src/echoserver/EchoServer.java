@@ -5,16 +5,12 @@
  */
 package echoserver;
 
-/**
- *
- * @author dzelazny
- */
 import java.net.*;
 import java.io.*;
 
 public class EchoServer {
 
-    public static void main(String args[]) {
+    public static void main(String[] args) {
         ServerSocket serverSocket = null;
         Socket socket = null;
         try {

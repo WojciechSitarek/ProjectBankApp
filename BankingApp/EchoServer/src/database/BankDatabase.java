@@ -1,12 +1,13 @@
 package database;
 
 import models.Account;
-import models.Customer;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import static models.Account.generateAccountNumber;
 
@@ -131,23 +132,60 @@ public class BankDatabase {
     }
 
 
-    public static String getAccountInfo(int ownerId) throws SQLException {
+    public static String getAccountInfo(String login) {
         StringBuilder accountInfo = new StringBuilder();
-        String query = "SELECT * FROM Account WHERE ownerId = ?";
+        String query = "SELECT Account.accountNumber, Customer.name, Customer.lastname, Customer.login, Customer.address, Customer.phoneNumber " +
+                "FROM Account " +
+                "INNER JOIN Customer ON Account.ownerId = Customer.customerId " +
+                "WHERE Customer.login = ?";
         try (Connection connection = DatabaseConnection.getConnection();
              PreparedStatement statement = connection.prepareStatement(query)) {
+            statement.setString(1, login);
             ResultSet resultSet = statement.executeQuery();
             while (resultSet.next()) {
                 String accountNumber = resultSet.getString("accountNumber");
-                int balance = resultSet.getInt("balance");
-                Account account = new Account(accountNumber, balance, ownerId);
-                accountInfo.append(account.toString()).append("\n");
+                String name = resultSet.getString("name");
+                String lastName = resultSet.getString("lastname");
+                String address = resultSet.getString("address");
+                String phoneNumber = resultSet.getString("phoneNumber");
+
+                // Tworzenie stringa z informacjami o koncie
+                accountInfo.append("Account number: ").append(accountNumber).append("\n");
+                accountInfo.append("Name: ").append(name).append("\n");
+                accountInfo.append("Lastname: ").append(lastName).append("\n");
+                accountInfo.append("Address: ").append(address).append("\n");
+                accountInfo.append("Phone number: ").append(phoneNumber).append("\n");
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
         return accountInfo.toString();
     }
+
+    public static List<String> getTransactionHistory(String accountNumber) {
+        List<String> transactionHistory = new ArrayList<>();
+
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            String query = "SELECT transactionAmount, destinationAccountNumber FROM Transaction WHERE customerAccountNumber = ?\n";
+
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, accountNumber);
+                ResultSet resultSet = statement.executeQuery();
+
+                while (resultSet.next()) {
+                    double transactionAmount = resultSet.getDouble("Transaction.transactionAmount");
+                    String destinationAccountNumber = resultSet.getString("Transaction.destinationAccountNumber");
+                    String transactionInfo = "Transaction: Amount=" + transactionAmount + ", Destination Account=" + destinationAccountNumber;
+                    transactionHistory.add(transactionInfo);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return transactionHistory;
+    }
+
 
 
     // tutaj
@@ -161,11 +199,20 @@ public class BankDatabase {
                 preparedStatement.setDouble(1, depositAmount);
                 preparedStatement.setString(2, customerAccountNumber);
 
-                // Wykonaj zapytanie
+                // Wykonaj zapytanie aktualizacji salda na koncie
                 int rowsAffected = preparedStatement.executeUpdate();
 
                 // Sprawdź, czy transakcja została pomyślnie zakończona
                 if (rowsAffected > 0) {
+                    // Zapisz wpłatę do tabeli Pay
+                    String payQuery = "INSERT INTO Pay (transactionAmount, customerAccountNumber, transactionType) VALUES (?, ?, ?)";
+                    try (PreparedStatement payStatement = connection.prepareStatement(payQuery)) {
+                        payStatement.setDouble(1, depositAmount);
+                        payStatement.setString(2, customerAccountNumber);
+                        payStatement.setString(3, "deposit"); // Oznacz jako wpłatę
+                        payStatement.executeUpdate();
+                    }
+
                     System.out.println("Wpłata pomyślnie zrealizowana.");
                 } else {
                     System.out.println("Wpłata nieudana. Sprawdź numer konta.");
@@ -175,6 +222,9 @@ public class BankDatabase {
             e.printStackTrace();
         }
     }
+
+
+
 
 
     public class PaymentProcessor {
@@ -229,47 +279,61 @@ public class BankDatabase {
                 updateStatement.executeUpdate();
             }
 
-            String insertQuery = "INSERT INTO Pay (transactionAmount, accountNumber) VALUES (?, ?)";
+            String insertQuery = "INSERT INTO Pay (transactionAmount, customerAccountNumber, transactionType) VALUES (?, ?, ?)";
             try (PreparedStatement insertStatement = connection.prepareStatement(insertQuery)) {
                 insertStatement.setDouble(1, transactionAmount);
                 insertStatement.setString(2, accountNumber);
+                insertStatement.setString(3, "withdraw"); // Oznacz jako wypłatę
                 insertStatement.executeUpdate();
             }
         }
     }
 
 // tutaj - przelew
-    public static void makeTransfer(String accountNumber, String destinationAccountNumber, double transferAmount) {
-        try (Connection connection = DatabaseConnection.getConnection()) {
-            // Sprawdź, czy środki na koncie źródłowym są wystarczające
-            if (checkSufficientFunds(connection, accountNumber, transferAmount)) {
-                // Rozpocznij transakcję
-                connection.setAutoCommit(false);
+public static void makeTransfer(String accountNumber, String destinationAccountNumber, double transferAmount) {
+    try (Connection connection = DatabaseConnection.getConnection()) {
+        // Sprawdź, czy środki na koncie źródłowym są wystarczające
+        if (checkSufficientFunds(connection, accountNumber, transferAmount)) {
+            // Rozpocznij transakcję
+            connection.setAutoCommit(false);
 
-                try {
-                    // Zmniejsz saldo na koncie źródłowym
-                    updateBalance(connection, accountNumber, -transferAmount);
+            try {
+                // Zmniejsz saldo na koncie źródłowym
+                updateBalance(connection, accountNumber, -transferAmount);
 
-                    // Zwiększ saldo na koncie docelowym
-                    updateBalance(connection, destinationAccountNumber, transferAmount);
+                // Zwiększ saldo na koncie docelowym
+                updateBalance(connection, destinationAccountNumber, transferAmount);
 
-                    // Zatwierdź transakcję
-                    connection.commit();
+                // Zapisz transakcję w tabeli Transaction
+                saveTransaction(connection, accountNumber, destinationAccountNumber, transferAmount);
 
-                    System.out.println("Przelew pomyślnie zrealizowany.");
-                } catch (SQLException e) {
-                    // W razie błędu anuluj transakcję
-                    connection.rollback();
-                    System.out.println("Błąd podczas przetwarzania przelewu. Transakcja anulowana.");
-                } finally {
-                    // Przywróć domyślną funkcję automatycznego zatwierdzania
-                    connection.setAutoCommit(true);
-                }
-            } else {
-                System.out.println("Niewystarczające środki na koncie źródłowym.");
+                // Zatwierdź transakcję
+                connection.commit();
+
+                System.out.println("Przelew pomyślnie zrealizowany.");
+            } catch (SQLException e) {
+                // W razie błędu anuluj transakcję
+                connection.rollback();
+                System.out.println("Błąd podczas przetwarzania przelewu. Transakcja anulowana.");
+            } finally {
+                // Przywróć domyślną funkcję automatycznego zatwierdzania
+                connection.setAutoCommit(true);
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
+        } else {
+            System.out.println("Niewystarczające środki na koncie źródłowym.");
+        }
+    } catch (SQLException e) {
+        e.printStackTrace();
+    }
+}
+
+    private static void saveTransaction(Connection connection, String accountNumber, String destinationAccountNumber, double transactionAmount) throws SQLException {
+        String insertQuery = "INSERT INTO Transaction (transactionAmount, customerAccountNumber, destinationAccountNumber) VALUES (?, ?, ?)";
+        try (PreparedStatement insertStatement = connection.prepareStatement(insertQuery)) {
+            insertStatement.setDouble(1, transactionAmount);
+            insertStatement.setString(2, accountNumber);
+            insertStatement.setString(3, destinationAccountNumber);
+            insertStatement.executeUpdate();
         }
     }
 

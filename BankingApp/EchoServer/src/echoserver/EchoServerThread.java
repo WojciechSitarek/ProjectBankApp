@@ -4,6 +4,7 @@ import database.BankDatabase;
 
 import java.net.*;
 import java.io.*;
+import java.util.List;
 
 public class EchoServerThread implements Runnable {
     protected Socket socket;
@@ -14,11 +15,10 @@ public class EchoServerThread implements Runnable {
         this.socket = clientSocket;
     }
 
-
     public void run() {
         //Deklaracje zmiennych
-        BufferedReader brinp = null;
-        DataOutputStream out = null;
+        BufferedReader brinp;
+        DataOutputStream out;
         String threadName = Thread.currentThread().getName();
 
         //inicjalizacja strumieni
@@ -33,7 +33,7 @@ public class EchoServerThread implements Runnable {
             System.out.println(threadName + "| Błąd przy tworzeniu strumieni " + e);
             return;
         }
-        String line = null;
+        String line;
         boolean loggedIn = false;
         //pętla główna
         while (true) {
@@ -62,35 +62,36 @@ public class EchoServerThread implements Runnable {
                             if (loginSuccessful) {
                                 loggedIn = true;
                                 loggedInAccountNumber = BankDatabase.getAccountNumberByLogin(loggedInUser);
-                                out.writeBytes("Logowanie powiodlo sie\n");
+                                out.writeBytes("Login successful\n");
                                 out.writeBytes("""
-                                        === Lista Operacji ===
-                                        1. Wplata
-                                        2. Wyplata
-                                        3. Sprawdz srodki
-                                        4. Przelew
-                                        5. Informacji
-                                        6. Wyloguj
+                                        === Operations ===
+                                        1. Deposit
+                                        2. Withdraw
+                                        3. Get balance(balance)
+                                        4. Transfer
+                                        5. Info
+                                        6. Transaction History
+                                        7. Logout
                                         """);
                             } else {
-                                out.writeBytes("Logowanie nie powiodlo sie\n");
+                                out.writeBytes("Login failed\n");
                             }
                             break;
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
                         break;
-                    case "wyloguj":
+                    case "logout":
                         loggedIn = false;
                         loggedInUser = null;
                         loggedInAccountNumber = null;
-                        out.writeBytes("Wylogowano pomyślnie\n");
+                        out.writeBytes("You have logged out successfully\n");
                         out.flush();
                         break;
 
                     default:
                         if (!loggedIn) {
-                            out.writeBytes("Musisz byc zalogowany!\n");
+                            out.writeBytes("You must be logged in!\n");
                             out.flush();
                             break;
                         } else {
@@ -99,19 +100,22 @@ public class EchoServerThread implements Runnable {
                                     handleDeposit(brinp,out);
                                     break;
                                 case "withdraw":
-                                    handleWithdrawal(out,brinp);
+                                    handleWithdrawal(brinp,out);
                                     break;
                                 case "balance":
                                     handleCheckBalance(out);
                                     break;
                                 case "info":
-                                    // implementacja info
+                                    handleGetInfo(out);
                                     break;
                                 case "transfer":
                                     handleTransfer(out,brinp);
                                     break;
+                                case "transactionHistory":
+                                    handleTransactionHistory(out);
+                                    break;
                                 default:
-                                    out.writeBytes("Nieprawidlowe polecenie\n");
+                                    out.writeBytes("Invalid command\n");
                                     out.flush();
                             }
                         }
@@ -124,36 +128,36 @@ public class EchoServerThread implements Runnable {
     }
 
     private void handleRegistration(BufferedReader brinp, DataOutputStream out) throws IOException {
-        out.writeBytes("Podaj imie: \n");
+        out.writeBytes("Enter your name: \n");
         out.flush();
         String name = brinp.readLine();
-        out.writeBytes("Podaj nazwisko: \n");
+        out.writeBytes("Enter your last name: \n");
         out.flush();
         String lastName = brinp.readLine();
-        out.writeBytes("Podaj login: \n");
+        out.writeBytes("Enter your login: \n");
         out.flush();
         String login = brinp.readLine();
-        out.writeBytes("Podaj haslo: \n");
+        out.writeBytes("Enter your password: \n");
         out.flush();
         String password = brinp.readLine();
-        out.writeBytes("Podaj adres: \n");
+        out.writeBytes("Enter your address: \n");
         out.flush();
         String address = brinp.readLine();
-        out.writeBytes("Podaj numer telefonu: \n");
+        out.writeBytes("Enter your phone number: \n");
         out.flush();
         int phoneNumber = Integer.parseInt(brinp.readLine());
         BankDatabase.registerCustomer(name, lastName, login, password, address, phoneNumber);
         String ownerId = String.valueOf(BankDatabase.getCustomerIdByLogin(loggedInUser));
         BankDatabase.createCustomerAccount(ownerId,BankDatabase.getCustomerIdByLogin(login));
-        out.writeBytes("Utworzono uzytkownika!\n\r");
+        out.writeBytes("User created successfully!\n\r");
         out.flush();
     }
 
     private boolean handleUserLogin(BufferedReader brinp, DataOutputStream out) throws IOException {
-        out.writeBytes("Podaj login: \n");
+        out.writeBytes("Enter your login: \n");
         out.flush();
         String login = brinp.readLine();
-        out.writeBytes("Podaj haslo: \n");
+        out.writeBytes("Enter your password: \n");
         out.flush();
         String password = brinp.readLine();
         out.flush();
@@ -169,53 +173,84 @@ public class EchoServerThread implements Runnable {
     private void handleCheckBalance(DataOutputStream out) throws IOException {
         if (loggedInUser != null) {
             double balance = BankDatabase.getBalanceByLogin(loggedInUser);
-            out.writeBytes("Aktualny stan konta: " + balance + "\n");
+            out.writeBytes("Current account balance: " + balance + " zl\n");
             out.flush();
         } else {
-            out.writeBytes("Nie jestes zalogowany!\n");
+            out.writeBytes("You're not logged in!\n");
             out.flush();
         }
     }
 
     private void handleDeposit(BufferedReader brinp, DataOutputStream out) throws IOException {
         if (loggedInAccountNumber != null) {
-            out.writeBytes("Podaj kwote: \n");
+            out.writeBytes("Enter the amount(zl): \n");
             out.flush();
             String depositAmountString = brinp.readLine();
             BankDatabase.makePayment(loggedInAccountNumber, Integer.parseInt(depositAmountString));
 
-            out.writeBytes("Wplata pomyslnie zrealizowana.\n");
+            out.writeBytes("Payment successfully made!\n");
         } else {
-            out.writeBytes("Nie jestes zalogowany lub numer konta jest nieprawidlowy!\n");
+            out.writeBytes("You are not logged in or your account number is incorrect!\n");
         }
         out.flush();
     }
-    private void handleWithdrawal(DataOutputStream out,BufferedReader brinp ) throws IOException {
+    private void handleWithdrawal(BufferedReader brinp, DataOutputStream out) throws IOException {
         if (loggedInAccountNumber != null) {
-            out.writeBytes("Podaj kwote");
+            out.writeBytes("Enter the amount(zl): \n");
             out.flush();
             String withdrawalAmount = brinp.readLine();
             BankDatabase.PaymentProcessor.makePaycheck((loggedInAccountNumber), Double.parseDouble(withdrawalAmount));
-            out.writeBytes("Wypłata pomyślnie zrealizowana.\n");
+            out.writeBytes("Withdrawal successfully completed!\n");
         } else {
-            out.writeBytes("Nie jesteś zalogowany lub numer konta jest nieprawidłowy!\n");
+            out.writeBytes("You are not logged in or your account number is incorrect!\n");
         }
         out.flush();
     }
 
     private void handleTransfer(DataOutputStream out,BufferedReader brinp ) throws IOException {
         if (loggedInAccountNumber != null) {
-            out.writeBytes("Podaj kwote: \n");
+            out.writeBytes("Enter the amount(zl): \n");
             out.flush();
             String transferAmount = brinp.readLine();
-            out.writeBytes("Podaj docelowy numer konta: \n");
+            out.writeBytes("Enter the target account number: \n");
             out.flush();
             String destinationAccountNumber = brinp.readLine();
             BankDatabase.makeTransfer((loggedInAccountNumber), destinationAccountNumber, Double.parseDouble(transferAmount));
-            out.writeBytes("Przelew pomyślnie zrealizowany.\n");
+            out.writeBytes("Transfer successfully completed!\n");
         } else {
-            out.writeBytes("Nie jesteś zalogowany lub numer konta jest nieprawidłowy!\n");
+            out.writeBytes("You are not logged in or your account number is incorrect!\n");
         }
         out.flush();
+    }
+
+    private void handleGetInfo(DataOutputStream out) throws IOException {
+        if (loggedInUser != null) {
+            String accountInfo = BankDatabase.getAccountInfo(loggedInUser);
+            out.writeBytes(accountInfo);
+        } else {
+            out.writeBytes("You're not logged in!\n");
+            out.flush();
+        }
+        out.flush();
+    }
+
+    public void handleTransactionHistory(DataOutputStream out) throws IOException {
+        if (loggedInAccountNumber != null) {
+            List<String> transactionHistory = BankDatabase.getTransactionHistory(loggedInAccountNumber);
+            if (!transactionHistory.isEmpty()) {
+                out.writeBytes("Historia transakcji dla konta " + loggedInAccountNumber + ":\n");
+                out.flush();
+                for (String transaction : transactionHistory) {
+                    out.writeBytes(transaction + "\n"); // Dodajemy znak nowej linii po każdej wiadomości
+                    out.flush();
+                }
+            } else {
+                out.writeBytes("Brak dokonanych operacji.\n"); // Dodajemy znak nowej linii
+                out.flush();
+            }
+        } else {
+            out.writeBytes("Nie jesteś zalogowany!\n"); // Dodajemy znak nowej linii
+            out.flush();
+        }
     }
 }
