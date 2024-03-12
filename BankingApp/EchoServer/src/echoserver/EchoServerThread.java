@@ -154,19 +154,22 @@ public class EchoServerThread implements Runnable {
             out.writeBytes(prompt + "\n");
             out.flush();
             input = brinp.readLine().trim();
-            if (input.length() > maxLength) {
+            if (input.isEmpty()) {
+                out.writeBytes("Input cannot be empty. Please enter a value.\n");
+            } else if (input.length() > maxLength) {
                 out.writeBytes("Input is too long. Maximum length is " + maxLength + " characters.\n");
             }
-        } while (input.length() > maxLength);
+        } while (input.isEmpty() || input.length() > maxLength);
         return input;
     }
+
 
     private int getPhoneNumber(BufferedReader brinp, DataOutputStream out) throws IOException {
         String phoneNumberString;
         do {
-            phoneNumberString = getInput(brinp, out, "Enter your phone number:", 12);
+            phoneNumberString = getInput(brinp, out, "Enter your phone number:", 9);
             if (!phoneNumberString.matches("\\d{9}")) {
-                out.writeBytes("Invalid phone number format. Please enter less than 13 digits.\n");
+                out.writeBytes("Invalid phone number format. Please enter exactly 9 digits.\n");
             }
         } while (!phoneNumberString.matches("\\d{9}"));
         return Integer.parseInt(phoneNumberString);
