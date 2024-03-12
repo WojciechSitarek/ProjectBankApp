@@ -130,29 +130,46 @@ public class EchoServerThread implements Runnable {
     }
 
     private void handleRegistration(BufferedReader brinp, DataOutputStream out) throws IOException {
-        out.writeBytes("Enter your name: \n");
-        out.flush();
-        String name = brinp.readLine();
-        out.writeBytes("Enter your last name: \n");
-        out.flush();
-        String lastName = brinp.readLine();
-        out.writeBytes("Enter your login: \n");
-        out.flush();
-        String login = brinp.readLine();
-        out.writeBytes("Enter your password: \n");
-        out.flush();
-        String password = brinp.readLine();
-        out.writeBytes("Enter your address: \n");
-        out.flush();
-        String address = brinp.readLine();
-        out.writeBytes("Enter your phone number: \n");
-        out.flush();
-        int phoneNumber = Integer.parseInt(brinp.readLine());
+        int maxNameLength = 50;
+        int maxAddressLength = 255;
+
+        String name = getInput(brinp, out, "Enter your name:", maxNameLength);
+        String lastName = getInput(brinp, out, "Enter your last name:", maxNameLength);
+        String login = getInput(brinp, out, "Enter your login:", maxNameLength);
+        String password = getInput(brinp, out, "Enter your password:", maxNameLength);
+        String address = getInput(brinp, out, "Enter your address:", maxAddressLength);
+        int phoneNumber = getPhoneNumber(brinp, out);
+
         BankDatabase.registerCustomer(name, lastName, login, password, address, phoneNumber);
         String ownerId = String.valueOf(BankDatabase.getCustomerIdByLogin(loggedInUser));
-        BankDatabase.createCustomerAccount(ownerId,BankDatabase.getCustomerIdByLogin(login));
+        BankDatabase.createCustomerAccount(ownerId, BankDatabase.getCustomerIdByLogin(login));
+
         out.writeBytes("User created successfully!\n\r");
         out.flush();
+    }
+
+    private String getInput(BufferedReader brinp, DataOutputStream out, String prompt, int maxLength) throws IOException {
+        String input;
+        do {
+            out.writeBytes(prompt + "\n");
+            out.flush();
+            input = brinp.readLine().trim();
+            if (input.length() > maxLength) {
+                out.writeBytes("Input is too long. Maximum length is " + maxLength + " characters.\n");
+            }
+        } while (input.length() > maxLength);
+        return input;
+    }
+
+    private int getPhoneNumber(BufferedReader brinp, DataOutputStream out) throws IOException {
+        String phoneNumberString;
+        do {
+            phoneNumberString = getInput(brinp, out, "Enter your phone number:", 12);
+            if (!phoneNumberString.matches("\\d{9}")) {
+                out.writeBytes("Invalid phone number format. Please enter less than 13 digits.\n");
+            }
+        } while (!phoneNumberString.matches("\\d{9}"));
+        return Integer.parseInt(phoneNumberString);
     }
 
     private boolean handleUserLogin(BufferedReader brinp, DataOutputStream out) throws IOException {
