@@ -73,6 +73,7 @@ public class EchoServerThread implements Runnable {
                                         6. Transaction History
                                         7. Logout
                                         """);
+
                             } else {
                                 out.writeBytes("Login failed\n");
                             }
@@ -95,7 +96,8 @@ public class EchoServerThread implements Runnable {
                             out.flush();
                             break;
                         } else {
-                            switch (line) {
+                            String lowerCaseLine = line.toLowerCase();
+                            switch (lowerCaseLine) {
                                 case "deposit":
                                     handleDeposit(brinp,out);
                                     break;
@@ -111,7 +113,7 @@ public class EchoServerThread implements Runnable {
                                 case "transfer":
                                     handleTransfer(out,brinp);
                                     break;
-                                case "transactionHistory":
+                                case "transactionhistory":
                                     handleTransactionHistory(out);
                                     break;
                                 default:
