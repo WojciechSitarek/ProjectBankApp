@@ -186,7 +186,8 @@ public class EchoServerThread implements Runnable {
             out.writeBytes("Enter the amount(zl): \n");
             out.flush();
             String depositAmountString = brinp.readLine();
-            BankDatabase.makePayment(loggedInAccountNumber, Integer.parseInt(depositAmountString));
+            depositAmountString = depositAmountString.replace(',','.');
+            BankDatabase.makePayment(loggedInAccountNumber, Double.parseDouble(depositAmountString));
 
             out.writeBytes("Payment successfully made!\n");
         } else {
@@ -195,15 +196,18 @@ public class EchoServerThread implements Runnable {
         out.flush();
     }
     private void handleWithdrawal(BufferedReader brinp, DataOutputStream out) throws IOException {
-        if (loggedInAccountNumber != null) {
-            out.writeBytes("Enter the amount(zl): \n");
-            out.flush();
-            String withdrawalAmount = brinp.readLine();
-            BankDatabase.PaymentProcessor.makePaycheck((loggedInAccountNumber), Double.parseDouble(withdrawalAmount));
-            out.writeBytes("Withdrawal successfully completed!\n");
-        } else {
-            out.writeBytes("You are not logged in or your account number is incorrect!\n");
-        }
+
+            if (loggedInAccountNumber != null) {
+                    out.writeBytes("Enter the amount(zl): \n");
+                    out.flush();
+                    String withdrawalAmount = brinp.readLine();
+                    withdrawalAmount = withdrawalAmount.replace(',','.');
+                    BankDatabase.PaymentProcessor.makePaycheck((loggedInAccountNumber), Double.parseDouble(withdrawalAmount));
+                    out.writeBytes("Withdrawal successfully completed!\n");
+            } else {
+                out.writeBytes("You are not logged in or your account number is incorrect!\n");
+                out.flush();
+            }
         out.flush();
     }
 
@@ -212,6 +216,7 @@ public class EchoServerThread implements Runnable {
             out.writeBytes("Enter the amount(zl): \n");
             out.flush();
             String transferAmount = brinp.readLine();
+            transferAmount = transferAmount.replace(',','.');
             out.writeBytes("Enter the target account number: \n");
             out.flush();
             String destinationAccountNumber = brinp.readLine();
