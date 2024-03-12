@@ -136,6 +136,11 @@ public class EchoServerThread implements Runnable {
         String name = getInput(brinp, out, "Enter your name:", maxNameLength);
         String lastName = getInput(brinp, out, "Enter your last name:", maxNameLength);
         String login = getInput(brinp, out, "Enter your login:", maxNameLength);
+        if (BankDatabase.isLoginExist(login)) {
+            out.writeBytes("Login already exists. Please choose a different one.\n");
+            out.flush();
+            return;
+        }
         String password = getInput(brinp, out, "Enter your password:", maxNameLength);
         String address = getInput(brinp, out, "Enter your address:", maxAddressLength);
         int phoneNumber = getPhoneNumber(brinp, out);
@@ -147,7 +152,6 @@ public class EchoServerThread implements Runnable {
         out.writeBytes("User created successfully!\n\r");
         out.flush();
     }
-
     private String getInput(BufferedReader brinp, DataOutputStream out, String prompt, int maxLength) throws IOException {
         String input;
         do {
@@ -205,50 +209,81 @@ public class EchoServerThread implements Runnable {
 
     private void handleDeposit(BufferedReader brinp, DataOutputStream out) throws IOException {
         if (loggedInAccountNumber != null) {
-            out.writeBytes("Enter the amount(zl): \n");
-            out.flush();
-            String depositAmountString = brinp.readLine();
-            depositAmountString = depositAmountString.replace(',','.');
-            BankDatabase.makePayment(loggedInAccountNumber, Double.parseDouble(depositAmountString));
+            String depositAmountString;
+            do {
+                out.writeBytes("Enter the amount(zl): \n");
+                out.flush();
+                depositAmountString = brinp.readLine();
+                depositAmountString = depositAmountString.replace(',', '.');
+                if (depositAmountString.isEmpty()) {
+                    out.writeBytes("Input cannot be empty. Please enter a value.\n");
+                }
+            } while (depositAmountString.isEmpty());
 
+            BankDatabase.makePayment(loggedInAccountNumber, Double.parseDouble(depositAmountString));
             out.writeBytes("Payment successfully made!\n");
         } else {
             out.writeBytes("You are not logged in or your account number is incorrect!\n");
         }
         out.flush();
     }
-    private void handleWithdrawal(BufferedReader brinp, DataOutputStream out) throws IOException {
 
-            if (loggedInAccountNumber != null) {
-                    out.writeBytes("Enter the amount(zl): \n");
-                    out.flush();
-                    String withdrawalAmount = brinp.readLine();
-                    withdrawalAmount = withdrawalAmount.replace(',','.');
-                    BankDatabase.PaymentProcessor.makePaycheck((loggedInAccountNumber), Double.parseDouble(withdrawalAmount));
-                    out.writeBytes("Withdrawal successfully completed!\n");
-            } else {
-                out.writeBytes("You are not logged in or your account number is incorrect!\n");
+    private void handleWithdrawal(BufferedReader brinp, DataOutputStream out) throws IOException {
+        if (loggedInAccountNumber != null) {
+            String withdrawalAmount;
+            do {
+                out.writeBytes("Enter the amount(zl): \n");
                 out.flush();
-            }
+                withdrawalAmount = brinp.readLine();
+                withdrawalAmount = withdrawalAmount.replace(',', '.');
+                if (withdrawalAmount.isEmpty()) {
+                    out.writeBytes("Input cannot be empty. Please enter a value.\n");
+                }
+            } while (withdrawalAmount.isEmpty());
+
+            BankDatabase.PaymentProcessor.makePaycheck(loggedInAccountNumber, Double.parseDouble(withdrawalAmount));
+            out.writeBytes("Withdrawal successfully completed!\n");
+        } else {
+            out.writeBytes("You are not logged in or your account number is incorrect!\n");
+        }
         out.flush();
     }
 
-    private void handleTransfer(DataOutputStream out,BufferedReader brinp ) throws IOException {
+
+    private void handleTransfer(DataOutputStream out, BufferedReader brinp) throws IOException {
         if (loggedInAccountNumber != null) {
-            out.writeBytes("Enter the amount(zl): \n");
-            out.flush();
-            String transferAmount = brinp.readLine();
-            transferAmount = transferAmount.replace(',','.');
-            out.writeBytes("Enter the target account number: \n");
-            out.flush();
-            String destinationAccountNumber = brinp.readLine();
-            BankDatabase.makeTransfer((loggedInAccountNumber), destinationAccountNumber, Double.parseDouble(transferAmount));
+            String transferAmount;
+            do {
+                out.writeBytes("Enter the amount(zl): \n");
+                out.flush();
+                transferAmount = brinp.readLine();
+                transferAmount = transferAmount.replace(',', '.');
+                if (transferAmount.isEmpty()) {
+                    out.writeBytes("Input cannot be empty. Please enter a value.\n");
+                }
+            } while (transferAmount.isEmpty());
+
+            String destinationAccountNumber;
+            do {
+                out.writeBytes("Enter the target account number: \n");
+                out.flush();
+                destinationAccountNumber = brinp.readLine();
+                if (destinationAccountNumber.isEmpty()) {
+                    out.writeBytes("Input cannot be empty. Please enter a valid account number.\n");
+                } else if (!BankDatabase.isAccountNumberExist(destinationAccountNumber)) {
+                    out.writeBytes("Invalid account number. Please enter a valid account number.\n");
+                    return;
+                }
+            } while (!BankDatabase.isAccountNumberExist(destinationAccountNumber) && destinationAccountNumber.isEmpty());
+
+            BankDatabase.makeTransfer(loggedInAccountNumber, destinationAccountNumber, Double.parseDouble(transferAmount));
             out.writeBytes("Transfer successfully completed!\n");
         } else {
             out.writeBytes("You are not logged in or your account number is incorrect!\n");
         }
         out.flush();
     }
+
 
     private void handleGetInfo(DataOutputStream out) throws IOException {
         if (loggedInUser != null) {

@@ -60,6 +60,42 @@ public class BankDatabase {
         }
     }
 
+    public static boolean isLoginExist(String login) {
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            String query = "SELECT COUNT(*) FROM customer WHERE login = ?";
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, login);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    if (resultSet.next()) {
+                        int count = resultSet.getInt(1);
+                        return count > 0;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public static boolean isAccountNumberExist(String accountNumber) {
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            String query = "SELECT COUNT(*) FROM account WHERE accountNumber = ?";
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, accountNumber);
+                try (ResultSet resultSet = statement.executeQuery()) {
+                    if (resultSet.next()) {
+                        int count = resultSet.getInt(1);
+                        return count > 0;
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
     public static int getCustomerIdByLogin(String login) {
         int customerId = 0;
         try (Connection connection = DatabaseConnection.getConnection()) {
