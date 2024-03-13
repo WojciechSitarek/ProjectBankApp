@@ -32,7 +32,6 @@ public class Client {
         }
     }
 
-    // Klasa obsługująca odczyt danych od serwera
     static class ServerReader implements Runnable {
         private Socket socket;
 

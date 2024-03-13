@@ -227,20 +227,15 @@ public class BankDatabase {
     // tutaj
     public static void makePayment(String customerAccountNumber, double depositAmount) {
         try (Connection connection = DatabaseConnection.getConnection()) {
-            // Utwórz zapytanie SQL do aktualizacji salda na koncie
             String depositQuery = "UPDATE Account SET balance = balance + ? WHERE accountNumber = ?";
 
             try (PreparedStatement preparedStatement = connection.prepareStatement(depositQuery)) {
-                // Ustaw parametry zapytania
                 preparedStatement.setDouble(1, depositAmount);
                 preparedStatement.setString(2, customerAccountNumber);
 
-                // Wykonaj zapytanie aktualizacji salda na koncie
                 int rowsAffected = preparedStatement.executeUpdate();
 
-                // Sprawdź, czy transakcja została pomyślnie zakończona
                 if (rowsAffected > 0) {
-                    // Zapisz wpłatę do tabeli Pay
                     String payQuery = "INSERT INTO Pay (transactionAmount, customerAccountNumber, transactionType) VALUES (?, ?, ?)";
                     try (PreparedStatement payStatement = connection.prepareStatement(payQuery)) {
                         payStatement.setDouble(1, depositAmount);

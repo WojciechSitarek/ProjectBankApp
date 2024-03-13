@@ -217,8 +217,10 @@ public class EchoServerThread implements Runnable {
                 depositAmountString = depositAmountString.replace(',', '.');
                 if (depositAmountString.isEmpty()) {
                     out.writeBytes("Input cannot be empty. Please enter a value.\n");
+                } else if (Double.parseDouble(depositAmountString) <= 0) {
+                    out.writeBytes("Value must be above 0\n");
                 }
-            } while (depositAmountString.isEmpty());
+            } while (depositAmountString.isEmpty() || (Double.parseDouble(depositAmountString) <= 0));
 
             BankDatabase.makePayment(loggedInAccountNumber, Double.parseDouble(depositAmountString));
             out.writeBytes("Payment successfully made!\n");
@@ -238,8 +240,10 @@ public class EchoServerThread implements Runnable {
                 withdrawalAmount = withdrawalAmount.replace(',', '.');
                 if (withdrawalAmount.isEmpty()) {
                     out.writeBytes("Input cannot be empty. Please enter a value.\n");
+                } else if (Double.parseDouble(withdrawalAmount) <= 0) {
+                    out.writeBytes("Value must be above 0\n");
                 }
-            } while (withdrawalAmount.isEmpty());
+            } while (withdrawalAmount.isEmpty() || (Double.parseDouble(withdrawalAmount) <= 0));
 
             BankDatabase.PaymentProcessor.makePaycheck(loggedInAccountNumber, Double.parseDouble(withdrawalAmount));
             out.writeBytes("Withdrawal successfully completed!\n");
@@ -260,8 +264,10 @@ public class EchoServerThread implements Runnable {
                 transferAmount = transferAmount.replace(',', '.');
                 if (transferAmount.isEmpty()) {
                     out.writeBytes("Input cannot be empty. Please enter a value.\n");
+                } else if (Double.parseDouble(transferAmount) <= 0) {
+                    out.writeBytes("Value must be above 0\n");
                 }
-            } while (transferAmount.isEmpty());
+            } while (transferAmount.isEmpty() || (Double.parseDouble(transferAmount) <= 0));
 
             String destinationAccountNumber;
             do {

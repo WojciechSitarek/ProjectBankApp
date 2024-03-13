@@ -26,7 +26,6 @@ public class DatabaseConnection {
         try {
             connection = getConnection();
             System.out.println("Connected to database.");
-            // Tutaj możesz wykonywać operacje na bazie danych...
         } catch (SQLException e) {
             e.printStackTrace();
             System.err.println("Failed to connect to database.");
