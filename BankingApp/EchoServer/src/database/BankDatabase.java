@@ -1,6 +1,7 @@
 package database;
 
 import models.Account;
+import models.Customer;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -13,6 +14,15 @@ import static models.Account.generateAccountNumber;
 
 public class BankDatabase {
 
+
+    //----------------------> ADMIN <----------------------//
+
+
+
+
+
+
+    //--------------------------------------------------------------//
     public static void createCustomerAccount(String ownerID, int customerId) {
         String accountNumber = generateAccountNumber();
         double balance = 0.0;
@@ -120,7 +130,22 @@ public class BankDatabase {
                 statement.setString(1, login);
                 statement.setString(2, password);
                 ResultSet resultSet = statement.executeQuery();
-                return resultSet.next(); // Zwróci true, jeśli istnieje wiersz z takim loginem i hasłem
+                return resultSet.next();
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    public static boolean checkCredentialsAdmin(String login, String password) {
+        try (Connection connection = DatabaseConnection.getConnection()) {
+            String query = "SELECT * FROM admin WHERE login = ? AND password = ?";
+            try (PreparedStatement statement = connection.prepareStatement(query)) {
+                statement.setString(1, login);
+                statement.setString(2, password);
+                ResultSet resultSet = statement.executeQuery();
+                return resultSet.next();
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -129,9 +154,7 @@ public class BankDatabase {
     }
     public static double getBalanceByLogin(String login) {
         double balance = 0.0;
-        int customerId = getCustomerIdByLogin(login); // Pobranie identyfikatora klienta na podstawie loginu
-
-        // Zapytanie do bazy danych
+        int customerId = getCustomerIdByLogin(login);
         String query = "SELECT balance FROM Account WHERE ownerId = ?";
 
         try (Connection connection = DatabaseConnection.getConnection();
@@ -240,7 +263,7 @@ public class BankDatabase {
                     try (PreparedStatement payStatement = connection.prepareStatement(payQuery)) {
                         payStatement.setDouble(1, depositAmount);
                         payStatement.setString(2, customerAccountNumber);
-                        payStatement.setString(3, "deposit"); // Oznacz jako wpłatę
+                        payStatement.setString(3, "deposit");
                         payStatement.executeUpdate();
                     }
 
@@ -254,6 +277,59 @@ public class BankDatabase {
         }
     }
 
+    public class ChangeData {
+        public static void changeUserName(String login, String newName) {
+            try (Connection connection = DatabaseConnection.getConnection()) {
+                String query = "UPDATE Customer SET name = ? WHERE login = ?";
+                try (PreparedStatement statement = connection.prepareStatement(query)) {
+                    statement.setString(1, newName);
+                    statement.setString(2, login);
+                    statement.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public static void changeUserLastName(String login, String newLastName) {
+            try (Connection connection = DatabaseConnection.getConnection()) {
+                String query = "UPDATE Customer SET lastname = ? WHERE login = ?";
+                try (PreparedStatement statement = connection.prepareStatement(query)) {
+                    statement.setString(1, newLastName);
+                    statement.setString(2, login);
+                    statement.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public static void changeUserLogin(String login, String newLogin) {
+            try (Connection connection = DatabaseConnection.getConnection()) {
+                String query = "UPDATE Customer SET login = ? WHERE login = ?";
+                try (PreparedStatement statement = connection.prepareStatement(query)) {
+                    statement.setString(1, newLogin);
+                    statement.setString(2, login);
+                    statement.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+
+        public static void changeUserBalance(String accountNumber, double newBalance) {
+            try (Connection connection = DatabaseConnection.getConnection()) {
+                String query = "UPDATE Account SET balance = ? WHERE accountNumber = ?";
+                try (PreparedStatement statement = connection.prepareStatement(query)) {
+                    statement.setDouble(1, newBalance);
+                    statement.setString(2, accountNumber);
+                    statement.executeUpdate();
+                }
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
 
 
@@ -263,9 +339,7 @@ public class BankDatabase {
         // tutuaj - wypłata
         public static void makePaycheck(String accountNumber, double transactionAmount) {
             try (Connection connection = DatabaseConnection.getConnection()) {
-                // Sprawdzamy, czy istnieje odpowiedni rekord w tabeli Account
                 if (isValidAccount(connection, accountNumber)) {
-                    // Sprawdzamy, czy na koncie jest wystarczająca ilość środków
                     if (hasSufficientBalance(connection, accountNumber, transactionAmount)) {
                         // Dokonujemy wypłaty
                         performPayment(connection, accountNumber, transactionAmount);
@@ -314,7 +388,7 @@ public class BankDatabase {
             try (PreparedStatement insertStatement = connection.prepareStatement(insertQuery)) {
                 insertStatement.setDouble(1, transactionAmount);
                 insertStatement.setString(2, accountNumber);
-                insertStatement.setString(3, "withdraw"); // Oznacz jako wypłatę
+                insertStatement.setString(3, "withdraw");
                 insertStatement.executeUpdate();
             }
         }
@@ -323,31 +397,21 @@ public class BankDatabase {
 // tutaj - przelew
 public static void makeTransfer(String accountNumber, String destinationAccountNumber, double transferAmount) {
     try (Connection connection = DatabaseConnection.getConnection()) {
-        // Sprawdź, czy środki na koncie źródłowym są wystarczające
         if (checkSufficientFunds(connection, accountNumber, transferAmount)) {
-            // Rozpocznij transakcję
             connection.setAutoCommit(false);
 
             try {
-                // Zmniejsz saldo na koncie źródłowym
                 updateBalance(connection, accountNumber, -transferAmount);
-
-                // Zwiększ saldo na koncie docelowym
                 updateBalance(connection, destinationAccountNumber, transferAmount);
-
-                // Zapisz transakcję w tabeli Transaction
                 saveTransaction(connection, accountNumber, destinationAccountNumber, transferAmount);
 
-                // Zatwierdź transakcję
                 connection.commit();
 
                 System.out.println("Przelew pomyślnie zrealizowany.");
             } catch (SQLException e) {
-                // W razie błędu anuluj transakcję
                 connection.rollback();
                 System.out.println("Błąd podczas przetwarzania przelewu. Transakcja anulowana.");
             } finally {
-                // Przywróć domyślną funkcję automatycznego zatwierdzania
                 connection.setAutoCommit(true);
             }
         } else {

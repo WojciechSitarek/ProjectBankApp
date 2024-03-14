@@ -9,6 +9,7 @@ import java.util.List;
 public class EchoServerThread implements Runnable {
     protected Socket socket;
     private String loggedInUser;
+    private String loggedInAdmin;
     private String loggedInAccountNumber;
 
     public EchoServerThread(Socket clientSocket) {
@@ -35,6 +36,7 @@ public class EchoServerThread implements Runnable {
         }
         String line;
         boolean loggedIn = false;
+        boolean loggedInAdmin = false;
         //pętla główna
         while (true) {
             try {
@@ -47,6 +49,25 @@ public class EchoServerThread implements Runnable {
                     return;
                 }
                 switch (line) {
+                    case "admin":
+                        try {
+                            boolean adminLoginSuccessful = handleAdminLogin(brinp, out);
+                            if (adminLoginSuccessful) {
+                                loggedInAdmin = true;
+                                out.writeBytes("Login successful\n");
+                                out.writeBytes("""
+                                        ====Operations====
+                                        1. change login
+                                        2. change balance
+                                        """);
+                            } else {
+                                out.writeBytes("Login failed\n");
+                            }
+                            break;
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                        break;
                     case "register":
                         try {
                             handleRegistration(brinp, out);
@@ -91,11 +112,23 @@ public class EchoServerThread implements Runnable {
                         break;
 
                     default:
+                        if (loggedInAdmin) {
+                        String lowerCaseLine = line.toLowerCase();
+                            switch (lowerCaseLine) {
+                                case "changelogin":
+                                 handleLoginChange(brinp,out);
+                                 break;
+                                case "balance":
+                                    handleBalanceChange(brinp,out);
+                                 break;
+                            }
+
+                        }
                         if (!loggedIn) {
                             out.writeBytes("You must be logged in!\n");
                             out.flush();
                             break;
-                        } else {
+                        }  else {
                             String lowerCaseLine = line.toLowerCase();
                             switch (lowerCaseLine) {
                                 case "deposit":
@@ -127,6 +160,56 @@ public class EchoServerThread implements Runnable {
                 return;
             }
         }
+    }
+
+    public static void handleUserNameChange(BufferedReader brinp, DataOutputStream out) throws IOException {
+        try {
+            out.writeBytes("Enter login to find user: \n");
+            out.flush();
+            String login = brinp.readLine();
+            out.writeBytes("Enter new name: \n");
+            out.flush();
+            String newName = brinp.readLine();
+            out.writeBytes("Enter new last name: \n");
+            out.flush();
+            String newLogin = brinp.readLine();
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+    public static void handleLoginChange(BufferedReader brinp, DataOutputStream out) throws IOException {
+        try {
+            out.writeBytes("Enter login to change: \n");
+            out.flush();
+            String currentLogin = brinp.readLine();
+            out.writeBytes("Enter new login: \n");
+            out.flush();
+            String newLogin = brinp.readLine();
+            BankDatabase.ChangeData.changeUserLogin(currentLogin, newLogin);
+            out.writeBytes("Login changed successfully!\n");
+        } catch (IOException e) {
+            out.writeBytes("Failed to change login. Please try again later.\n");
+            e.printStackTrace();
+        }
+        out.flush();
+    }
+
+    public static void handleBalanceChange(BufferedReader brinp, DataOutputStream out) throws IOException {
+        try {
+            out.writeBytes("Enter account number to change balance: \n");
+            out.flush();
+            String accountNumber = brinp.readLine();
+            out.writeBytes("Enter new balance: \n");
+            out.flush();
+            String newBalance = brinp.readLine();
+            BankDatabase.ChangeData.changeUserBalance(accountNumber, Double.parseDouble(newBalance));
+            out.writeBytes("Balance changed successfully!\n");
+        } catch (IOException e) {
+            out.writeBytes("Failed to change balance. Please try again later.\n");
+            e.printStackTrace();
+        }
+        out.flush();
     }
 
     private void handleRegistration(BufferedReader brinp, DataOutputStream out) throws IOException {
@@ -192,6 +275,22 @@ public class EchoServerThread implements Runnable {
         if (loginSuccess) {
             loggedInUser = login;
             loggedInAccountNumber = BankDatabase.getAccountNumberByLogin(loggedInUser);
+        }
+        return loginSuccess;
+    }
+
+    private boolean handleAdminLogin(BufferedReader brinp, DataOutputStream out) throws IOException {
+        out.writeBytes("Enter your login: \n");
+        out.flush();
+        String login = brinp.readLine();
+        out.writeBytes("Enter your password: \n");
+        out.flush();
+        String password = brinp.readLine();
+        out.flush();
+        boolean loginSuccess = BankDatabase.checkCredentialsAdmin(login, password);
+        out.flush();
+        if (loginSuccess) {
+            loggedInUser = login;
         }
         return loginSuccess;
     }
